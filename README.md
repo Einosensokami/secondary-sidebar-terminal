@@ -6,7 +6,7 @@
 
 此 VSIX 適用於 **Windows x64、VS Code 1.106 以上**。
 
-1. Extensions 的 `…` 選單 → **Install from VSIX…**，安裝 `secondary-sidebar-terminal-win32-x64-0.4.1.vsix`。
+1. [下載 0.4.1 VSIX](https://github.com/Einosensokami/secondary-sidebar-terminal/releases/download/v0.4.1/secondary-sidebar-terminal-win32-x64-0.4.1.vsix)，在 Extensions 的 `…` 選單選擇 **Install from VSIX…** 安裝。
 2. 若 VS Code 提示重新載入，執行 **Developer: Reload Window**。
 3. `Ctrl+Shift+P` → **Secondary Terminal: 開啟於次要側邊欄**。也可在次要側邊欄選擇 **Terminal** 分頁。
 
