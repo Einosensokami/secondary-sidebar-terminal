@@ -6,7 +6,7 @@
 
 此 VSIX 適用於 **Windows x64、VS Code 1.106 以上**。
 
-1. Extensions 的 `…` 選單 → **Install from VSIX…**，安裝 `secondary-sidebar-terminal-win32-x64-0.4.0.vsix`。
+1. Extensions 的 `…` 選單 → **Install from VSIX…**，安裝 `secondary-sidebar-terminal-win32-x64-0.4.1.vsix`。
 2. 若 VS Code 提示重新載入，執行 **Developer: Reload Window**。
 3. `Ctrl+Shift+P` → **Secondary Terminal: 開啟於次要側邊欄**。也可在次要側邊欄選擇 **Terminal** 分頁。
 
@@ -15,6 +15,7 @@
 ## 操作
 
 - `＋`：新增獨立的側欄 shell。
+- `↑` / `↓`：將目前側欄終端機往上或往下翻一頁；也可在輸出區使用滑鼠滾輪或觸控板雙指滑動。
 - 下拉選單：切換側欄工作階段，各工作階段的狀態會保留。
 - 名稱會跟隨程式送出的終端標題更新。例如 Codex、Claude Code 若有送出程式名稱或任務標題，會同步顯示在工作階段選單與側欄標題。支援 OSC 0 / OSC 2；程式沒有送出標題時，保留現有名稱。
 - `×`：關閉目前側欄 shell，其他側欄工作階段與底部終端機可繼續使用。

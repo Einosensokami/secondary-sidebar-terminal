@@ -32,7 +32,7 @@ class SidebarTerminal {
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${view.webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; font-src ${view.webview.cspSource};">
 <link href="${uri('xterm.css')}" rel="stylesheet"><link href="${uri('terminal.css')}" rel="stylesheet"></head>
 <body data-sidebar-terminal="true">
-<div id="toolbar"><select id="sessions" aria-label="側欄終端機"></select><button id="new" title="新增終端機" aria-label="新增終端機">＋</button><button id="close" title="關閉目前終端機" aria-label="關閉目前終端機">×</button></div>
+<div id="toolbar"><select id="sessions" aria-label="側欄終端機"></select><button id="scroll-up" title="往上翻一頁" aria-label="往上翻一頁">↑</button><button id="scroll-down" title="往下翻一頁" aria-label="往下翻一頁">↓</button><button id="new" title="新增終端機" aria-label="新增終端機">＋</button><button id="close" title="關閉目前終端機" aria-label="關閉目前終端機">×</button></div>
 <div id="empty">尚未開啟終端機。<button id="start">開啟終端機</button></div>
 <div id="terminal"></div><div id="status" role="status"></div>
 <script nonce="${nonce}" src="${uri('xterm.js')}"></script><script nonce="${nonce}" src="${uri('addon-fit.js')}"></script><script nonce="${nonce}" src="${uri('terminal.js')}"></script>

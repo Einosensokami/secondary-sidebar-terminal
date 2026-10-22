@@ -77,6 +77,25 @@ async function run() {
     assert.ok(frameBox && sidebarBox && frameBox.x >= sidebarBox.x, 'Independent webview is displayed in the Secondary Side Bar');
     await until(async () => await frame.locator('#sessions option').count() === 1, 'one initial sidebar session');
 
+    const scrollInput = frame.locator('.session:not([hidden]) .xterm-helper-textarea');
+    await scrollInput.focus();
+    await scrollInput.pressSequentially('1..200 | ForEach-Object { Write-Output "SCROLL-$_" }', { delay: 1 });
+    await scrollInput.press('Enter');
+    const rows = frame.locator('.session:not([hidden]) .xterm-rows');
+    await until(async () => (await rows.textContent()).includes('SCROLL-200'), 'sidebar output finishes');
+    const firstRow = frame.locator('.session:not([hidden]) .xterm-rows > div').first();
+    const bottomRow = await firstRow.textContent();
+    assert.equal(await frame.locator('#scroll-up').count(), 1, 'sidebar has an explicit scroll-up control');
+    await frame.locator('#scroll-up').click();
+    await until(async () => (await firstRow.textContent()) !== bottomRow, 'scroll-up reveals older output');
+    await frame.locator('#scroll-down').click();
+    await until(async () => (await firstRow.textContent()) === bottomRow, 'scroll-down returns to newer output');
+    await frame.locator('.session:not([hidden]) .xterm-screen').hover();
+    for (let i = 0; i < 20; i++) await page.mouse.wheel(3, -2);
+    await until(async () => (await firstRow.textContent()) !== bottomRow, 'small touchpad gestures reveal older output');
+    for (let i = 0; i < 20; i++) await page.mouse.wheel(3, 2);
+    await until(async () => (await firstRow.textContent()) === bottomRow, 'small touchpad gestures return to newer output');
+
     const sidebarPid = await sidebarCommand(frame, 'echo $PID', path.join(output, 'sidebar-pid.txt'));
     assert.match(sidebarPid, /^\d+$/, 'Sidebar runs a real PowerShell process');
     assert.notEqual(Number(sidebarPid), await sentinel.processId, 'The two shells are separate processes');
@@ -168,6 +187,7 @@ async function run() {
     fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify({
       passed: true, vscode: vscode.version,
       checks: ['native terminal remains in bottom panel', 'both shells execute commands simultaneously',
+        'scroll buttons reveal older output', 'small touchpad gestures scroll both directions',
         'independent shell PIDs', 'repeated opens reuse session', 'new sidebar sessions',
         'switching sessions preserves environment', 'hide/reveal preserves process',
         'closing sidebar leaves bottom shell running', 'restart from empty state', 'upgrade recovery preserves native shell',

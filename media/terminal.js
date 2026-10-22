@@ -45,6 +45,21 @@
     term.onData((data) => send({ type: 'input', id, data }));
     term.onTitleChange((title) => send({ type: 'title', id, title }));
     term.onResize(({ cols, rows }) => send({ type: 'resize', id, cols, rows }));
+    let wheelPixels = 0;
+    element.addEventListener('wheel', (event) => {
+      if (id !== activeId || term.buffer.active.type !== 'normal' ||
+          term.modes.mouseTrackingMode !== 'none' || !event.deltaY || event.ctrlKey) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const lineHeight = element.querySelector('.xterm-rows > div')?.getBoundingClientRect().height || 16;
+      const pixels = event.deltaY * (event.deltaMode === 1 ? lineHeight : event.deltaMode === 2 ? term.rows * lineHeight : 1);
+      wheelPixels += pixels;
+      const lines = Math.trunc(wheelPixels / lineHeight);
+      if (lines) {
+        term.scrollLines(lines);
+        wheelPixels -= lines * lineHeight;
+      }
+    }, { capture: true, passive: false });
     term.attachCustomKeyEventHandler((event) => {
       if (event.type !== 'keydown') return true;
       const mac = /Mac/i.test(navigator.platform);
@@ -73,6 +88,8 @@
     empty.hidden = Boolean(id);
     root.hidden = !id;
     document.getElementById('close').disabled = !id;
+    document.getElementById('scroll-up').disabled = !id;
+    document.getElementById('scroll-down').disabled = !id;
     fit();
     terminals.get(id)?.term.focus();
   }
@@ -126,6 +143,8 @@
   document.getElementById('new').addEventListener('click', () => send({ type: 'new' }));
   document.getElementById('start').addEventListener('click', () => send({ type: 'new' }));
   document.getElementById('close').addEventListener('click', () => send({ type: 'close', id: activeId }));
+  document.getElementById('scroll-up').addEventListener('click', () => terminals.get(activeId)?.term.scrollPages(-1));
+  document.getElementById('scroll-down').addEventListener('click', () => terminals.get(activeId)?.term.scrollPages(1));
   new ResizeObserver(() => {
     cancelAnimationFrame(resizeFrame);
     resizeFrame = requestAnimationFrame(fit);
