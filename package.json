@@ -2,7 +2,7 @@
   "name": "secondary-sidebar-terminal",
   "displayName": "Secondary Sidebar Terminal",
   "description": "An independent terminal in the Secondary Side Bar, alongside your existing terminals.",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "publisher": "local-tools",
   "license": "MIT",
   "engines": {

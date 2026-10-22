@@ -48,7 +48,9 @@
     let wheelPixels = 0;
     element.addEventListener('wheel', (event) => {
       if (id !== activeId || term.buffer.active.type !== 'normal' ||
-          term.modes.mouseTrackingMode !== 'none' || !event.deltaY || event.ctrlKey) return;
+          !term.buffer.active.baseY || !event.deltaY || event.ctrlKey) return;
+      // Inline applications can enable mouse reports while retaining history.
+      // Let gestures scroll that history instead of reporting them to the app.
       event.preventDefault();
       event.stopPropagation();
       const lineHeight = element.querySelector('.xterm-rows > div')?.getBoundingClientRect().height || 16;

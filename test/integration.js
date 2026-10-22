@@ -98,6 +98,37 @@ async function run() {
     for (let i = 0; i < 20; i++) await page.mouse.wheel(3, 2);
     await until(async () => (await firstRow.textContent()) === bottomRow, 'small touchpad gestures return to newer output');
 
+    // Inline TUIs may request mouse reports while retaining normal scrollback.
+    const trackedInput = frame.locator('.session:not([hidden]) .xterm-helper-textarea');
+    await trackedInput.focus();
+    await trackedInput.pressSequentially('1..200 | ForEach-Object { Write-Output "TRACKED-$_" }', { delay: 1 });
+    await trackedInput.press('Enter');
+    const trackedRows = frame.locator('.session:not([hidden]) .xterm-rows');
+    await until(async () => (await trackedRows.textContent()).includes('TRACKED-200'), 'tracked session has scrollback');
+    // Feed a protocol fixture at the PTY-to-webview boundary so Windows ConPTY
+    // cannot consume the mouse-mode request before it reaches the emulator.
+    await frame.locator('.session:not([hidden])').evaluate((element) => {
+      window.dispatchEvent(new MessageEvent('message', {
+        data: { type: 'data', id: element.dataset.session, data: '\x1b[?1000h' }
+      }));
+    });
+    await until(async () => await frame.locator('.session:not([hidden]) .xterm.enable-mouse-events').count() === 1,
+      'inline application enabled mouse tracking');
+    const trackedFirstRow = frame.locator('.session:not([hidden]) .xterm-rows > div').first();
+    const trackedBottomRow = await trackedFirstRow.textContent();
+    await frame.locator('.session:not([hidden]) .xterm-screen').hover();
+    for (let i = 0; i < 20; i++) await page.mouse.wheel(0, -2);
+    await until(async () => (await trackedFirstRow.textContent()) !== trackedBottomRow,
+      'touchpad scrolls normal scrollback even when the app tracks mouse events');
+    for (let i = 0; i < 20; i++) await page.mouse.wheel(0, 2);
+    await until(async () => (await trackedFirstRow.textContent()) === trackedBottomRow,
+      'touchpad returns to live output while mouse tracking is enabled');
+    await frame.locator('.session:not([hidden])').evaluate((element) => {
+      window.dispatchEvent(new MessageEvent('message', {
+        data: { type: 'data', id: element.dataset.session, data: '\x1b[?1000l' }
+      }));
+    });
+
     await scrollInput.focus();
     await scrollInput.pressSequentially('1..6000 | ForEach-Object { Write-Output "HISTORY-$_" }', { delay: 1 });
     await scrollInput.press('Enter');
@@ -199,7 +230,7 @@ async function run() {
       passed: true, vscode: vscode.version,
       checks: ['native terminal remains in bottom panel', 'both shells execute commands simultaneously',
         'scroll buttons reveal older output', 'small touchpad gestures scroll both directions',
-        'history remains accessible after 6000 lines',
+        'history remains accessible after 6000 lines', 'touchpad scrolls history with application mouse tracking enabled',
         'independent shell PIDs', 'repeated opens reuse session', 'new sidebar sessions',
         'switching sessions preserves environment', 'hide/reveal preserves process',
         'closing sidebar leaves bottom shell running', 'restart from empty state', 'upgrade recovery preserves native shell',
