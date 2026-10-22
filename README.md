@@ -26,6 +26,8 @@
 
 隱藏側欄或切換到 Chat 後，shell 會繼續執行；回到 Terminal 可繼續操作。重新載入或關閉 VS Code 視窗時，側欄 shell 會結束。原生 Terminal 的分割、Tasks、Debug Console 與 shell integration 仍由 VS Code 管理；側欄 shell 使用自己的終端畫面。
 
+若在側欄執行 Codex CLI 的 `codex resume`，請改用 `codex resume --no-alt-screen`，讓對話留在終端機回捲歷史中。也可在 Codex 輸入 `/tui`、選擇 **scrollback**，再重新啟動 Codex。Codex 的全螢幕模式使用 alternate screen；該畫面不會進入一般終端機的回捲緩衝區。參見 [Codex CLI 指令選項](https://learn.chatgpt.com/docs/cli/reference) 與 [Codex 開發者指令](https://learn.chatgpt.com/docs/developer-commands)。
+
 次要側邊欄通常在右邊，實際位置遵循你的 VS Code 配置。新 shell 的起始目錄為目前工作區的第一個本機資料夾；沒有工作區時使用使用者家目錄。
 
 ## Python 虛擬環境
