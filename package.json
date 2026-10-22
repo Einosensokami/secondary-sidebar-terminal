@@ -1,8 +1,8 @@
 {
   "name": "secondary-sidebar-terminal",
   "displayName": "Secondary Sidebar Terminal",
-  "description": "An independent terminal in the Secondary Side Bar, alongside your existing terminals.",
-  "version": "0.4.3",
+  "description": "Native VS Code terminals in a right editor group, alongside your bottom terminals.",
+  "version": "0.5.0",
   "publisher": "local-tools",
   "license": "MIT",
   "engines": {
@@ -13,7 +13,7 @@
   ],
   "main": "./src/extension.js",
   "activationEvents": [
-    "onView:secondaryTerminal.launcher"
+    "onStartupFinished"
   ],
   "capabilities": {
     "untrustedWorkspaces": {
@@ -24,19 +24,19 @@
     "commands": [
       {
         "command": "secondaryTerminal.open",
-        "title": "開啟於次要側邊欄",
+        "title": "開啟右側原生終端機",
         "category": "Secondary Terminal",
-        "icon": "$(terminal)"
+        "icon": "$(layout-sidebar-right)"
       },
       {
         "command": "secondaryTerminal.new",
-        "title": "新增終端機於次要側邊欄",
+        "title": "新增右側原生終端機",
         "category": "Secondary Terminal",
         "icon": "$(add)"
       },
       {
         "command": "secondaryTerminal.close",
-        "title": "關閉目前側欄終端機",
+        "title": "關閉目前右側原生終端機",
         "category": "Secondary Terminal",
         "icon": "$(trash)"
       },
@@ -47,35 +47,12 @@
         "icon": "$(layout-panel)"
       }
     ],
-    "viewsContainers": {
-      "secondarySidebar": [
-        {
-          "id": "secondary-terminal",
-          "title": "Terminal",
-          "icon": "media/terminal.svg"
-        }
-      ]
-    },
-    "views": {
-      "secondary-terminal": [
-        {
-          "id": "secondaryTerminal.launcher",
-          "name": "Sidebar Terminal",
-          "type": "webview"
-        }
-      ]
-    },
     "menus": {
       "view/title": [
         {
-          "command": "secondaryTerminal.new",
-          "when": "view == secondaryTerminal.launcher",
-          "group": "navigation@1"
-        },
-        {
-          "command": "secondaryTerminal.close",
-          "when": "view == secondaryTerminal.launcher",
-          "group": "navigation@2"
+          "command": "secondaryTerminal.open",
+          "when": "view == terminal",
+          "group": "navigation@99"
         }
       ]
     },
@@ -85,7 +62,7 @@
         "secondaryTerminal.autoActivateEnvironment": {
           "type": "boolean",
           "default": true,
-          "description": "新增側欄終端機時，自動啟用偵測到的 Python venv 虛擬環境。"
+          "description": "新增右側原生終端機時，自動啟用偵測到的 Python venv 虛擬環境。"
         },
         "secondaryTerminal.environmentPath": {
           "type": "string",
@@ -96,7 +73,7 @@
           "type": "string",
           "default": "",
           "scope": "machine",
-          "description": "側欄使用的 shell 執行檔。留空時 Windows 使用 powershell.exe，其他平台使用 $SHELL。"
+          "description": "右側原生終端機使用的 shell 執行檔。留空時使用 VS Code 預設終端機設定。"
         },
         "secondaryTerminal.shellArgs": {
           "type": "array",
@@ -105,26 +82,20 @@
           },
           "default": [],
           "scope": "machine",
-          "description": "傳給側欄 shell 的參數。"
+          "description": "傳給右側原生 shell 的參數。"
         }
       }
     }
   },
   "scripts": {
-    "check": "node --check src/extension.js && node --check src/python-environment.js && node --check media/terminal.js && node --check test/python-environment.test.js && node --check test/integration.js && node --check test/run.js",
-    "test": "npm run build && node --test test/python-environment.test.js && node test/run.js",
+    "check": "node --check src/extension.js && node --check src/python-environment.js && node --check test/python-environment.test.js && node --check test/integration.js && node --check test/run.js",
+    "test": "node --test test/python-environment.test.js && node test/run.js",
     "package": "vsce package --target win32-x64 --allow-missing-repository",
-    "build": "node src/copy-assets.js",
-    "vscode:prepublish": "npm run build"
+    "vscode:prepublish": "npm run check"
   },
   "devDependencies": {
     "@vscode/vsce": "^3.6.0",
     "playwright-core": "1.64.1"
-  },
-  "dependencies": {
-    "@xterm/addon-fit": "0.11.0",
-    "@xterm/xterm": "6.0.0",
-    "node-pty": "1.1.0"
   },
   "extensionKind": [
     "workspace"

@@ -14,238 +14,110 @@ async function until(check, description) {
 }
 
 async function run() {
+  const output = process.env.SECONDARY_TEST_OUTPUT;
+  const workspace = process.env.SECONDARY_TEST_WORKSPACE;
   const extension = vscode.extensions.getExtension('local-tools.secondary-sidebar-terminal');
-  assert.ok(extension);
   await extension.activate();
-  const commands = await vscode.commands.getCommands(true);
-  for (const name of ['open', 'new', 'close']) assert.ok(commands.includes(`secondaryTerminal.${name}`));
-  const output = process.env.SECONDARY_TEST_OUTPUT || path.join(extension.extensionPath, '.test-output');
-  fs.mkdirSync(output, { recursive: true });
+  await vscode.workspace.getConfiguration('editor').update('accessibilitySupport', 'on', vscode.ConfigurationTarget.Global);
+  await vscode.workspace.getConfiguration('terminal.integrated').update('scrollback', 10000, vscode.ConfigurationTarget.Global);
   const browser = await chromium.connectOverCDP(`http://127.0.0.1:${process.env.SECONDARY_TEST_DEBUG_PORT}`);
   const page = browser.contexts()[0].pages().find((item) => item.url().includes('workbench'));
-  assert.ok(page, 'Workbench renderer is available');
-  const sentinel = vscode.window.createTerminal({
-    name: 'Bottom terminal must stay here',
-    shellPath: process.platform === 'win32' ? process.env.ComSpec : '/bin/sh',
+  assert.ok(page);
+  const bottom = vscode.window.createTerminal({
+    name: 'Bottom tests', shellPath: 'powershell.exe', shellArgs: ['-NoLogo', '-NoProfile'],
     location: vscode.TerminalLocation.Panel
   });
-  await sentinel.processId;
-  sentinel.show();
 
-  async function proveBottomAlive(name) {
-    const marker = path.join(output, `${name}.txt`);
-    fs.rmSync(marker, { force: true });
-    sentinel.sendText(`echo ${name}> "${marker}"`);
-    await until(() => fs.existsSync(marker) && fs.readFileSync(marker, 'utf8').includes(name), name);
-  }
-
-  async function sidebarFrame() {
-    let match;
-    await until(async () => {
-      for (const frame of page.frames()) {
-        if (await frame.locator('body[data-sidebar-terminal]').count().catch(() => 0)) {
-          match = frame;
-          return true;
-        }
-      }
-      return false;
-    }, 'independent sidebar webview');
-    return match;
-  }
-
-  async function sidebarCommand(frame, command, marker) {
-    fs.rmSync(marker, { force: true });
-    const input = frame.locator('.session:not([hidden]) .xterm-helper-textarea');
-    await input.focus();
-    await input.pressSequentially(`${command} > "${marker}"`, { delay: 2 });
-    await input.press('Enter');
-    await until(() => fs.existsSync(marker) && fs.statSync(marker).size > 0, command);
-    const bytes = fs.readFileSync(marker);
-    return bytes.toString(bytes[0] === 0xff && bytes[1] === 0xfe ? 'utf16le' : 'utf8').replace(/^\uFEFF/, '').trim();
+  async function command(terminal, expression, name) {
+    const file = path.join(output, `${name}.txt`);
+    fs.rmSync(file, { force: true });
+    terminal.sendText(`& { ${expression} } | Out-File -LiteralPath '${file.replace(/'/g, "''")}' -Encoding utf8`);
+    await until(() => fs.existsSync(file) && fs.statSync(file).size > 0, name);
+    return fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '').trim();
   }
 
   try {
-    await proveBottomAlive('bottom-before');
-    const nativeTerminals = [...vscode.window.terminals];
-    await vscode.commands.executeCommand('secondaryTerminal.open');
-    // This is the exact regression: the native terminal must remain in the bottom panel.
-    assert.equal(await page.locator('.part.panel .xterm').count(), 1, 'Opening the sidebar keeps the bottom terminal in place');
-    assert.deepEqual(vscode.window.terminals, nativeTerminals, 'No native terminals created or moved');
-    const frame = await sidebarFrame();
-    const frameBox = await (await frame.frameElement()).boundingBox();
-    const sidebarBox = await page.locator('.part.auxiliarybar').boundingBox();
-    assert.ok(frameBox && sidebarBox && frameBox.x >= sidebarBox.x, 'Independent webview is displayed in the Secondary Side Bar');
-    await until(async () => await frame.locator('#sessions option').count() === 1, 'one initial sidebar session');
+    const document = await vscode.workspace.openTextDocument({ content: 'Code stays here. Native terminals run on the right and below.' });
+    await vscode.window.showTextDocument(document, vscode.ViewColumn.One);
+    bottom.show(true);
+    const bottomPid = await bottom.processId;
+    await command(bottom, '$PID', 'bottom-before');
 
-    const scrollInput = frame.locator('.session:not([hidden]) .xterm-helper-textarea');
-    await scrollInput.focus();
-    await scrollInput.pressSequentially('1..200 | ForEach-Object { Write-Output "SCROLL-$_" }', { delay: 1 });
-    await scrollInput.press('Enter');
-    const rows = frame.locator('.session:not([hidden]) .xterm-rows');
-    await until(async () => (await rows.textContent()).includes('SCROLL-200'), 'sidebar output finishes');
-    const firstRow = frame.locator('.session:not([hidden]) .xterm-rows > div').first();
-    const initialBottomRow = await firstRow.textContent();
-    assert.equal(await frame.locator('#scroll-up').count(), 1, 'sidebar has an explicit scroll-up control');
-    await frame.locator('#scroll-up').click();
-    await until(async () => (await firstRow.textContent()) !== initialBottomRow, 'scroll-up reveals older output');
-    const topRow = await firstRow.textContent();
-    await frame.locator('#scroll-down').click();
-    await until(async () => (await firstRow.textContent()) !== topRow, 'scroll-down returns to newer output');
-    const bottomRow = await firstRow.textContent();
-    await frame.locator('.session:not([hidden]) .xterm-screen').hover();
-    for (let i = 0; i < 20; i++) await page.mouse.wheel(3, -2);
-    await until(async () => (await firstRow.textContent()) !== bottomRow, 'small touchpad gestures reveal older output');
-    for (let i = 0; i < 20; i++) await page.mouse.wheel(3, 2);
-    await until(async () => (await firstRow.textContent()) === bottomRow, 'small touchpad gestures return to newer output');
+    const right = await vscode.commands.executeCommand('secondaryTerminal.open');
+    assert.ok(vscode.window.terminals.includes(right), 'Right terminal is registered with VS Code');
+    assert.notEqual(await right.processId, bottomPid, 'Bottom and right have independent shells');
+    assert.equal(right.creationOptions.shellPath, undefined, 'Default shell uses VS Code profiles');
+    await until(() => vscode.window.tabGroups.all.some((group) => group.viewColumn > 1 &&
+      group.tabs.some((tab) => tab.input instanceof vscode.TabInputTerminal)), 'native terminal opens in a right editor group');
+    const rightGroup = vscode.window.tabGroups.all.find((group) => group.viewColumn > 1 &&
+      group.tabs.some((tab) => tab.input instanceof vscode.TabInputTerminal));
+    await until(async () => await page.locator('.part.editor .codicon-lock').count() > 0,
+      'native terminal group locks automatically');
+    assert.equal(await page.locator('.part.panel .xterm').count(), 1, 'Native bottom terminal stays in the panel');
+    assert.equal(await page.locator('.part.editor .xterm').count(), 1, 'Right terminal uses the native editor renderer');
+    assert.equal(page.frames().filter((frame) => frame.url().includes('vscode-webview')).length, 0, 'No custom terminal webview');
 
-    // Inline TUIs may request mouse reports while retaining normal scrollback.
-    const trackedInput = frame.locator('.session:not([hidden]) .xterm-helper-textarea');
-    await trackedInput.focus();
-    await trackedInput.pressSequentially('1..200 | ForEach-Object { Write-Output "TRACKED-$_" }', { delay: 1 });
-    await trackedInput.press('Enter');
-    const trackedRows = frame.locator('.session:not([hidden]) .xterm-rows');
-    await until(async () => (await trackedRows.textContent()).includes('TRACKED-200'), 'tracked session has scrollback');
-    // Feed a protocol fixture at the PTY-to-webview boundary so Windows ConPTY
-    // cannot consume the mouse-mode request before it reaches the emulator.
-    await frame.locator('.session:not([hidden])').evaluate((element) => {
-      window.dispatchEvent(new MessageEvent('message', {
-        data: { type: 'data', id: element.dataset.session, data: '\x1b[?1000h' }
-      }));
-    });
-    await until(async () => await frame.locator('.session:not([hidden]) .xterm.enable-mouse-events').count() === 1,
-      'inline application enabled mouse tracking');
-    const trackedFirstRow = frame.locator('.session:not([hidden]) .xterm-rows > div').first();
-    const trackedBottomRow = await trackedFirstRow.textContent();
-    await frame.locator('.session:not([hidden]) .xterm-screen').hover();
-    for (let i = 0; i < 20; i++) await page.mouse.wheel(0, -2);
-    await until(async () => (await trackedFirstRow.textContent()) !== trackedBottomRow,
-      'touchpad scrolls normal scrollback even when the app tracks mouse events');
-    for (let i = 0; i < 20; i++) await page.mouse.wheel(0, 2);
-    await until(async () => (await trackedFirstRow.textContent()) === trackedBottomRow,
-      'touchpad returns to live output while mouse tracking is enabled');
-    await frame.locator('.session:not([hidden])').evaluate((element) => {
-      window.dispatchEvent(new MessageEvent('message', {
-        data: { type: 'data', id: element.dataset.session, data: '\x1b[?1000l' }
-      }));
-    });
+    const environment = path.join(workspace, '.venv');
+    assert.equal(await command(right, '$env:VIRTUAL_ENV', 'native-venv'), environment);
+    assert.equal(await command(right, 'python -c "import sys; print(sys.prefix)"', 'native-python'), environment);
+    await command(bottom, '$PID', 'bottom-alongside');
 
-    await scrollInput.focus();
-    await scrollInput.pressSequentially('1..6000 | ForEach-Object { Write-Output "HISTORY-$_" }', { delay: 1 });
-    await scrollInput.press('Enter');
-    await until(async () => (await rows.textContent()).includes('HISTORY-6000'), 'long output finishes');
-    await frame.locator('#scroll-up').click();
-    await until(async () => await frame.locator('.session:not([hidden]) .xterm-rows > div').filter({ hasText: /^SCROLL-1\s*$/ }).count() > 0,
-      'scrolling to top reveals the start of long output');
-    await frame.locator('#scroll-down').click();
+    right.sendText('[Console]::Write((1..6000 | ForEach-Object { "NATIVE-HISTORY-$_" }) -join "`r`n"); [Console]::WriteLine()');
+    const rows = page.locator('.part.editor .xterm-accessibility-tree');
+    await until(async () => (await rows.textContent()).includes('NATIVE-HISTORY-6000'), 'native history finishes');
+    const liveRows = await rows.textContent();
+    await page.locator('.part.editor .xterm').first().hover();
+    for (let i = 0; i < 8; i++) await page.mouse.wheel(0, -120);
+    await until(async () => (await rows.textContent()) !== liveRows, 'native wheel reveals older output');
+    for (let i = 0; i < 8; i++) await page.mouse.wheel(0, 120);
+    await until(async () => (await rows.textContent()) === liveRows, 'native wheel returns to latest output');
+    right.show();
+    await vscode.commands.executeCommand('workbench.action.terminal.scrollToTop');
+    await until(async () => (await rows.locator('[role="listitem"]').allTextContents()).some((line) => /^NATIVE-HISTORY-1\s*$/.test(line)),
+      'native scrollback retains first of 6000 lines');
+    await vscode.commands.executeCommand('workbench.action.terminal.scrollToBottom');
 
-    const sidebarPid = await sidebarCommand(frame, 'echo $PID', path.join(output, 'sidebar-pid.txt'));
-    assert.match(sidebarPid, /^\d+$/, 'Sidebar runs a real PowerShell process');
-    assert.notEqual(Number(sidebarPid), await sentinel.processId, 'The two shells are separate processes');
-    const expectedEnvironment = path.join(process.env.SECONDARY_TEST_WORKSPACE, '.venv');
-    const activated = await sidebarCommand(frame, 'echo $env:VIRTUAL_ENV', path.join(output, 'activated-env.txt'));
-    assert.equal(activated, expectedEnvironment, 'Project venv is automatically activated');
-    const pythonPrefix = await sidebarCommand(frame, 'python -c "import sys; print(sys.prefix)"', path.join(output, 'python-prefix.txt'));
-    assert.equal(pythonPrefix, expectedEnvironment, 'Python actually uses the virtual environment');
+    bottom.show();
+    assert.equal(await vscode.commands.executeCommand('secondaryTerminal.open'), right, 'Open reuses the right terminal after bottom commands');
+    const second = await vscode.commands.executeCommand('secondaryTerminal.new');
+    assert.notEqual(second, right);
+    assert.notEqual(await second.processId, await right.processId);
+    await until(() => rightGroup.tabs.filter((tab) => tab.input instanceof vscode.TabInputTerminal).length === 2,
+      'new terminals reuse the same right group');
+    assert.equal(vscode.window.tabGroups.all.length, 2, 'New does not create extra editor columns');
+    assert.equal(await command(second, '$env:VIRTUAL_ENV', 'second-native-venv'), environment);
 
-    async function setTitle(title, osc = 0, terminator = 'BEL', preserveFocus = false) {
-      const chars = Array.from(title, (char) => `[char]${char.codePointAt(0)}`).join(',');
-      const end = terminator === 'BEL' ? '[char]7' : '([char]27 + "\\")';
-      const command = `${preserveFocus ? 'Start-Sleep -Milliseconds 500; ' : ''}[Console]::Write(([char]27 + ']${osc};' + (-join @(${chars})) + ${end}))`;
-      const input = frame.locator('.session:not([hidden]) .xterm-helper-textarea');
-      await input.focus();
-      await input.pressSequentially(command, { delay: 1 });
-      await input.press('Enter');
-      if (preserveFocus) await frame.locator('#sessions').focus();
-      await until(async () => await frame.locator('#sessions option:checked').textContent() === title,
-        `session title follows OSC ${osc}: ${title}`);
-      if (preserveFocus) assert.equal(await frame.locator('#sessions').evaluate((element) => element === document.activeElement), true,
-        'Title changes do not steal focus');
-    }
-    await setTitle('Codex');
-    const titleInput = frame.locator('.session:not([hidden]) .xterm-helper-textarea');
-    await titleInput.pressSequentially("$Host.UI.RawUI.WindowTitle = 'Claude Code'", { delay: 1 });
-    await titleInput.press('Enter');
-    await until(async () => await frame.locator('#sessions option:checked').textContent() === 'Claude Code',
-      'Windows console title changes propagate through ConPTY');
-    await setTitle('Codex - 修復登入流程', 2, 'ST', true);
-    const firstTitle = 'Codex - 修復登入流程';
-    await proveBottomAlive('bottom-alongside-sidebar');
-    await frame.locator('.session:not([hidden]) .xterm-helper-textarea').pressSequentially('$env:SIDEBAR_ONLY="first-session"');
-    await frame.locator('.session:not([hidden]) .xterm-helper-textarea').press('Enter');
+    bottom.show();
+    await vscode.commands.executeCommand('secondaryTerminal.close');
+    await until(() => !vscode.window.terminals.includes(second), 'Close disposes only the selected right terminal');
+    assert.ok(vscode.window.terminals.includes(bottom));
+    assert.ok(vscode.window.terminals.includes(right));
+    await command(bottom, '$PID', 'bottom-after-close');
+    assert.equal(await vscode.commands.executeCommand('secondaryTerminal.open'), right);
+    await page.screenshot({ path: path.join(output, 'native-terminals.png') });
 
-    await Promise.all([
-      vscode.commands.executeCommand('secondaryTerminal.open'),
-      vscode.commands.executeCommand('secondaryTerminal.open')
-    ]);
-    assert.equal(await frame.locator('#sessions option').count(), 1, 'Repeated open reuses the sidebar session');
-    assert.equal(await frame.locator('#sessions option:checked').textContent(), firstTitle, 'Open preserves the dynamic title');
-
-    await vscode.commands.executeCommand('secondaryTerminal.new');
-    await until(async () => await frame.locator('#sessions option').count() === 2, 'second independent session');
-    const secondPid = await sidebarCommand(frame, 'echo $PID', path.join(output, 'second-pid.txt'));
-    assert.notEqual(secondPid, sidebarPid, 'New creates a different shell process');
-    assert.equal(await sidebarCommand(frame, 'echo $env:VIRTUAL_ENV', path.join(output, 'second-env.txt')), expectedEnvironment,
-      'Every new sidebar shell activates the project environment');
-    await setTitle('Claude Code - 重構 API', 2);
-    assert.equal(await frame.locator('#sessions option[value="1"]').textContent(), firstTitle, 'Sessions keep independent titles');
-    await frame.locator('#sessions').selectOption('1');
-    assert.equal(await frame.locator('#sessions option:checked').textContent(), firstTitle);
-    const retained = await sidebarCommand(frame, 'echo $env:SIDEBAR_ONLY', path.join(output, 'retained.txt'));
-    assert.equal(retained, 'first-session', 'Switching sessions preserves shell state');
-
-    // Hide and reveal the Secondary Side Bar without killing its session.
-    await vscode.commands.executeCommand('workbench.action.toggleAuxiliaryBar');
-    await vscode.commands.executeCommand('secondaryTerminal.open');
-    const reopenedPid = await sidebarCommand(frame, 'echo $PID', path.join(output, 'reopened-pid.txt'));
-    assert.equal(reopenedPid, sidebarPid, 'Hide/reveal preserves the sidebar process');
-    assert.equal(await frame.locator('#sessions option:checked').textContent(), firstTitle, 'Hide/reveal preserves the title');
-
+    await vscode.commands.executeCommand('secondaryTerminal.close');
+    await until(() => !vscode.window.terminals.includes(right), 'close final right terminal');
     await vscode.workspace.getConfiguration('secondaryTerminal').update('autoActivateEnvironment', false, vscode.ConfigurationTarget.Workspace);
-    await vscode.commands.executeCommand('secondaryTerminal.new');
-    const disabled = await sidebarCommand(frame, "echo ([string]$env:VIRTUAL_ENV + 'EMPTY')", path.join(output, 'disabled-env.txt'));
-    assert.equal(disabled, 'EMPTY', 'Auto activation can be disabled for new shells');
+    const fresh = await vscode.commands.executeCommand('secondaryTerminal.open');
+    assert.equal(await command(fresh, 'if ($env:VIRTUAL_ENV) { $env:VIRTUAL_ENV } else { "NONE" }', 'native-disabled-venv'), 'NONE');
     await vscode.commands.executeCommand('secondaryTerminal.close');
-    await vscode.workspace.getConfiguration('secondaryTerminal').update('autoActivateEnvironment', true, vscode.ConfigurationTarget.Workspace);
-    await vscode.commands.executeCommand('secondaryTerminal.close');
-    await until(async () => await frame.locator('#sessions option').count() === 1, 'sidebar close');
-    assert.equal(await page.locator('.part.panel .xterm').count(), 1, 'Closing a sidebar session leaves the native terminal in place');
-    await proveBottomAlive('bottom-after-sidebar-close');
-    assert.deepEqual(vscode.window.terminals, nativeTerminals);
-    await vscode.commands.executeCommand('secondaryTerminal.close');
-    await until(async () => await frame.locator('#empty').isVisible(), 'empty state after closing final session');
-    await frame.locator('#start').click();
-    await until(async () => await frame.locator('#sessions option').count() === 1, 'restart from empty state');
-
-    // Reproduce the persisted 0.1 layout, then exercise the explicit upgrade recovery.
-    await vscode.commands.executeCommand('vscode.moveViews', {
-      viewIds: ['terminal'], destinationId: 'workbench.view.extension.secondary-terminal'
-    });
-    assert.equal(await page.locator('.part.panel .xterm').count(), 0);
-    await vscode.commands.executeCommand('secondaryTerminal.restore');
-    await until(async () => await page.locator('.part.panel .xterm').count() === 1, 'Legacy recovery returns the native terminal to the bottom');
-    await proveBottomAlive('bottom-after-legacy-recovery');
-    await vscode.commands.executeCommand('secondaryTerminal.open');
-
+    await command(bottom, '$PID', 'bottom-final');
     fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify({
       passed: true, vscode: vscode.version,
-      checks: ['native terminal remains in bottom panel', 'both shells execute commands simultaneously',
-        'scroll buttons reveal older output', 'small touchpad gestures scroll both directions',
-        'history remains accessible after 6000 lines', 'touchpad scrolls history with application mouse tracking enabled',
-        'independent shell PIDs', 'repeated opens reuse session', 'new sidebar sessions',
-        'switching sessions preserves environment', 'hide/reveal preserves process',
-        'closing sidebar leaves bottom shell running', 'restart from empty state', 'upgrade recovery preserves native shell',
-        'OSC 0 and OSC 2 titles update from real PTY output', 'BEL and ST title terminators',
-        'Windows console titles', 'Unicode task titles', 'title updates preserve focus',
-        'independent titles retained across switch and hide/reveal',
-        'real venv automatically activated, including paths with spaces and apostrophes',
-        'Python sys.prefix points to project venv', 'new shells activate independently', 'auto activation can be disabled']
+      checks: ['right terminal is a real VS Code native terminal', 'native bottom terminal stays alive and in place',
+        'independent shell processes', 'VS Code default shell profile is respected', 'native editor group is locked',
+        'no custom terminal webview', 'native wheel scrolls history in both directions', '6000 lines retained in native scrollback',
+        'open reuses existing terminal', 'new terminals share the right group', 'closing right terminal preserves bottom shell',
+        'real Python venv activated independently', 'auto activation can be disabled']
     }, null, 2));
   } catch (error) {
+    fs.writeFileSync(path.join(output, 'failure-dom.txt'), await page.locator('.part.editor').innerText().catch(() => ''));
     await page.screenshot({ path: path.join(output, 'failure.png') }).catch(() => {});
     throw error;
   } finally {
     await vscode.commands.executeCommand('secondaryTerminal.close');
-    sentinel.dispose();
+    bottom.dispose();
     await browser.close();
   }
 }
