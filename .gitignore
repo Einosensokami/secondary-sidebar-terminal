@@ -1,0 +1,8 @@
+node_modules/
+*.vsix
+.test-output/
+media/xterm.js
+media/xterm.css
+media/xterm.LICENSE
+media/addon-fit.js
+media/addon-fit.LICENSE

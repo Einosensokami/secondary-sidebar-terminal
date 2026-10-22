@@ -1,0 +1,132 @@
+{
+  "name": "secondary-sidebar-terminal",
+  "displayName": "Secondary Sidebar Terminal",
+  "description": "An independent terminal in the Secondary Side Bar, alongside your existing terminals.",
+  "version": "0.4.0",
+  "publisher": "local-tools",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.106.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./src/extension.js",
+  "activationEvents": [
+    "onView:secondaryTerminal.launcher"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false
+    }
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "secondaryTerminal.open",
+        "title": "開啟於次要側邊欄",
+        "category": "Secondary Terminal",
+        "icon": "$(terminal)"
+      },
+      {
+        "command": "secondaryTerminal.new",
+        "title": "新增終端機於次要側邊欄",
+        "category": "Secondary Terminal",
+        "icon": "$(add)"
+      },
+      {
+        "command": "secondaryTerminal.close",
+        "title": "關閉目前側欄終端機",
+        "category": "Secondary Terminal",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "secondaryTerminal.restore",
+        "title": "還原舊版移走的原生 Terminal 至底部",
+        "category": "Secondary Terminal",
+        "icon": "$(layout-panel)"
+      }
+    ],
+    "viewsContainers": {
+      "secondarySidebar": [
+        {
+          "id": "secondary-terminal",
+          "title": "Terminal",
+          "icon": "media/terminal.svg"
+        }
+      ]
+    },
+    "views": {
+      "secondary-terminal": [
+        {
+          "id": "secondaryTerminal.launcher",
+          "name": "Sidebar Terminal",
+          "type": "webview"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "secondaryTerminal.new",
+          "when": "view == secondaryTerminal.launcher",
+          "group": "navigation@1"
+        },
+        {
+          "command": "secondaryTerminal.close",
+          "when": "view == secondaryTerminal.launcher",
+          "group": "navigation@2"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Secondary Terminal",
+      "properties": {
+        "secondaryTerminal.autoActivateEnvironment": {
+          "type": "boolean",
+          "default": true,
+          "description": "新增側欄終端機時，自動啟用偵測到的 Python venv 虛擬環境。"
+        },
+        "secondaryTerminal.environmentPath": {
+          "type": "string",
+          "default": "",
+          "description": "指定 Python venv 資料夾或 Python 執行檔；留空時偵測 Python 擴充套件選定的環境及工作區的 .venv、venv、env、.env。"
+        },
+        "secondaryTerminal.shellPath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "description": "側欄使用的 shell 執行檔。留空時 Windows 使用 powershell.exe，其他平台使用 $SHELL。"
+        },
+        "secondaryTerminal.shellArgs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "scope": "machine",
+          "description": "傳給側欄 shell 的參數。"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "check": "node --check src/extension.js && node --check src/python-environment.js && node --check media/terminal.js && node --check test/python-environment.test.js && node --check test/integration.js && node --check test/run.js",
+    "test": "npm run build && node --test test/python-environment.test.js && node test/run.js",
+    "package": "vsce package --target win32-x64 --allow-missing-repository",
+    "build": "node src/copy-assets.js",
+    "vscode:prepublish": "npm run build"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^3.6.0",
+    "playwright-core": "1.64.1"
+  },
+  "dependencies": {
+    "@xterm/addon-fit": "0.11.0",
+    "@xterm/xterm": "6.0.0",
+    "node-pty": "1.1.0"
+  },
+  "extensionKind": [
+    "workspace"
+  ]
+}
