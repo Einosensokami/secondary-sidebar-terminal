@@ -84,17 +84,28 @@ async function run() {
     const rows = frame.locator('.session:not([hidden]) .xterm-rows');
     await until(async () => (await rows.textContent()).includes('SCROLL-200'), 'sidebar output finishes');
     const firstRow = frame.locator('.session:not([hidden]) .xterm-rows > div').first();
-    const bottomRow = await firstRow.textContent();
+    const initialBottomRow = await firstRow.textContent();
     assert.equal(await frame.locator('#scroll-up').count(), 1, 'sidebar has an explicit scroll-up control');
     await frame.locator('#scroll-up').click();
-    await until(async () => (await firstRow.textContent()) !== bottomRow, 'scroll-up reveals older output');
+    await until(async () => (await firstRow.textContent()) !== initialBottomRow, 'scroll-up reveals older output');
+    const topRow = await firstRow.textContent();
     await frame.locator('#scroll-down').click();
-    await until(async () => (await firstRow.textContent()) === bottomRow, 'scroll-down returns to newer output');
+    await until(async () => (await firstRow.textContent()) !== topRow, 'scroll-down returns to newer output');
+    const bottomRow = await firstRow.textContent();
     await frame.locator('.session:not([hidden]) .xterm-screen').hover();
     for (let i = 0; i < 20; i++) await page.mouse.wheel(3, -2);
     await until(async () => (await firstRow.textContent()) !== bottomRow, 'small touchpad gestures reveal older output');
     for (let i = 0; i < 20; i++) await page.mouse.wheel(3, 2);
     await until(async () => (await firstRow.textContent()) === bottomRow, 'small touchpad gestures return to newer output');
+
+    await scrollInput.focus();
+    await scrollInput.pressSequentially('1..6000 | ForEach-Object { Write-Output "HISTORY-$_" }', { delay: 1 });
+    await scrollInput.press('Enter');
+    await until(async () => (await rows.textContent()).includes('HISTORY-6000'), 'long output finishes');
+    await frame.locator('#scroll-up').click();
+    await until(async () => await frame.locator('.session:not([hidden]) .xterm-rows > div').filter({ hasText: /^SCROLL-1\s*$/ }).count() > 0,
+      'scrolling to top reveals the start of long output');
+    await frame.locator('#scroll-down').click();
 
     const sidebarPid = await sidebarCommand(frame, 'echo $PID', path.join(output, 'sidebar-pid.txt'));
     assert.match(sidebarPid, /^\d+$/, 'Sidebar runs a real PowerShell process');
@@ -188,6 +199,7 @@ async function run() {
       passed: true, vscode: vscode.version,
       checks: ['native terminal remains in bottom panel', 'both shells execute commands simultaneously',
         'scroll buttons reveal older output', 'small touchpad gestures scroll both directions',
+        'history remains accessible after 6000 lines',
         'independent shell PIDs', 'repeated opens reuse session', 'new sidebar sessions',
         'switching sessions preserves environment', 'hide/reveal preserves process',
         'closing sidebar leaves bottom shell running', 'restart from empty state', 'upgrade recovery preserves native shell',

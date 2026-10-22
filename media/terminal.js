@@ -36,7 +36,7 @@
     element.className = 'session';
     element.dataset.session = id;
     root.append(element);
-    const term = new Terminal({ cursorBlink: true, scrollback: 5000, fontSize: 13,
+    const term = new Terminal({ cursorBlink: true, scrollback: 100000, fontSize: 13,
       fontFamily: getComputedStyle(document.body).getPropertyValue('--vscode-editor-font-family') || 'monospace',
       theme: theme() });
     const fitAddon = new FitAddon.FitAddon();
@@ -143,8 +143,8 @@
   document.getElementById('new').addEventListener('click', () => send({ type: 'new' }));
   document.getElementById('start').addEventListener('click', () => send({ type: 'new' }));
   document.getElementById('close').addEventListener('click', () => send({ type: 'close', id: activeId }));
-  document.getElementById('scroll-up').addEventListener('click', () => terminals.get(activeId)?.term.scrollPages(-1));
-  document.getElementById('scroll-down').addEventListener('click', () => terminals.get(activeId)?.term.scrollPages(1));
+  document.getElementById('scroll-up').addEventListener('click', () => terminals.get(activeId)?.term.scrollToTop());
+  document.getElementById('scroll-down').addEventListener('click', () => terminals.get(activeId)?.term.scrollToBottom());
   new ResizeObserver(() => {
     cancelAnimationFrame(resizeFrame);
     resizeFrame = requestAnimationFrame(fit);
