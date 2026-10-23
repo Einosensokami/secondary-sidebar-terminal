@@ -79,12 +79,12 @@ class NativeTerminals {
   async open(createNew = false) {
     await this.ready;
     await vscode.commands.executeCommand('workbench.action.closeAuxiliaryBar');
-    const width = vscode.workspace.getConfiguration('secondaryTerminal').get('width', 360);
+    const width = vscode.workspace.getConfiguration('secondaryTerminal').get('width', 300);
     let column = this.sideColumn();
-    // Apply the initial width once to a terminal group restored from older versions.
-    if (column && !this.context.workspaceState.get('initialWidthApplied', false)) {
+    // Apply changed width preferences once, preserving later manual resizing.
+    if (column && this.context.workspaceState.get('lastConfiguredWidth') !== width) {
       await this.resizeColumn(column, width);
-      await this.context.workspaceState.update('initialWidthApplied', true);
+      await this.context.workspaceState.update('lastConfiguredWidth', width);
     }
     if (!createNew && this.active) {
       this.active.show();
@@ -99,7 +99,7 @@ class NativeTerminals {
     const shellArgs = config.get('shellArgs');
     if (!column) {
       column = await this.createSideColumn(width);
-      await this.context.workspaceState.update('initialWidthApplied', true);
+      await this.context.workspaceState.update('lastConfiguredWidth', width);
     }
     const terminal = vscode.window.createTerminal({
       location: { viewColumn: column },

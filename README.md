@@ -6,7 +6,7 @@
 
 ## 安裝與使用
 
-1. [下載 0.5.2 VSIX](https://github.com/Einosensokami/secondary-sidebar-terminal/releases/download/v0.5.2/secondary-sidebar-terminal-win32-x64-0.5.2.vsix)，執行 **Extensions: Install from VSIX…** 安裝。
+1. [下載 0.5.3 VSIX](https://github.com/Einosensokami/secondary-sidebar-terminal/releases/download/v0.5.3/secondary-sidebar-terminal-win32-x64-0.5.3.vsix)，執行 **Extensions: Install from VSIX…** 安裝。
 2. 執行 **Developer: Reload Window**。升級時，舊版 webview 中的 shell 會結束。
 3. `Ctrl+Shift+P` → **Secondary Terminal: 開啟右側原生終端機**。
 
@@ -23,7 +23,7 @@
 - **關閉目前右側原生終端機**：關閉最近使用的右側 shell；底部 shell 繼續執行。
 - 也可使用原生終端機的分頁、工具列、快捷鍵與滑鼠操作。
 - 右側群組預設由 VS Code 自動鎖定，開啟程式碼檔案時會使用其他群組。
-- 新建右側群組預設約 **360 像素寬**，接近側欄寬度。可用 `secondaryTerminal.width` 調整；小視窗會受可用空間限制。同一群組再次開啟或新增分頁會保留手動調整的寬度。
+- 新建右側群組預設約 **300 像素寬**，接近側欄寬度。可用 `secondaryTerminal.width` 調整；小視窗會受可用空間限制。同一群組再次開啟或新增分頁會保留手動調整的寬度；變更寬度設定後，下次開啟會套用新設定。
 
 歷史行數、字型、捲動與 shell profile 使用 VS Code 的 `terminal.integrated.*` 設定。例如增加歷史行數：
 

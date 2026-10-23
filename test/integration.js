@@ -56,7 +56,7 @@ async function run() {
     assert.equal(await page.locator('.part.editor .xterm').count(), 1, 'Right terminal uses the native editor renderer');
     assert.equal(page.frames().filter((frame) => frame.url().includes('vscode-webview')).length, 0, 'No custom terminal webview');
     const terminalGroup = page.locator('.part.editor .editor-group-container').filter({ has: page.locator('.xterm') });
-    await until(async () => Math.abs((await terminalGroup.boundingBox()).width - 360) < 8,
+    await until(async () => Math.abs((await terminalGroup.boundingBox()).width - 300) < 8,
       'new terminal group uses sidebar-like width');
 
     await command(bottom, '$PID', 'bottom-alongside');
@@ -105,7 +105,7 @@ async function run() {
     await until(() => !vscode.window.terminals.includes(right), 'close final right terminal');
     const fresh = await vscode.commands.executeCommand('secondaryTerminal.open');
     assert.equal(Number(await command(fresh, '$PID', 'reopened-native-pid')), await fresh.processId);
-    await until(async () => Math.abs((await terminalGroup.boundingBox()).width - 360) < 8,
+    await until(async () => Math.abs((await terminalGroup.boundingBox()).width - 300) < 8,
       'recreated terminal group restores default narrow width');
     await vscode.commands.executeCommand('secondaryTerminal.close');
     await until(() => vscode.window.tabGroups.all.length === 1, 'final terminal group closes');
@@ -121,7 +121,7 @@ async function run() {
     const nestedLayout = await vscode.commands.executeCommand('vscode.getEditorLayout');
     assert.equal(nestedLayout.orientation, 0);
     assert.equal(nestedLayout.groups[0].groups.length, 2, 'Stacked code layout is preserved');
-    await until(async () => Math.abs((await terminalGroup.boundingBox()).width - 360) < 8,
+    await until(async () => Math.abs((await terminalGroup.boundingBox()).width - 300) < 8,
       'right terminal beside stacked code still uses sidebar-like width');
     await vscode.commands.executeCommand('secondaryTerminal.close');
     await command(bottom, '$PID', 'bottom-final');
@@ -131,7 +131,7 @@ async function run() {
         'independent shell processes', 'VS Code default shell profile is respected', 'native editor group is locked',
         'no custom terminal webview', 'native wheel scrolls history in both directions', '6000 lines retained in native scrollback',
         'open reuses existing terminal', 'new terminals share the right group', 'closing right terminal preserves bottom shell',
-        'reopening after close creates a working native shell', 'new groups use 360 pixel sidebar-like width',
+        'reopening after close creates a working native shell', 'new groups use 300 pixel sidebar-like width',
         'open and new tab preserve manual width', 'recreated group restores narrow width',
         'stacked code groups preserved when narrow right column is added']
     }, null, 2));
