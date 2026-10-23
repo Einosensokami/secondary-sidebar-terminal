@@ -2,7 +2,7 @@
   "name": "secondary-sidebar-terminal",
   "displayName": "Secondary Sidebar Terminal",
   "description": "Native VS Code terminals in a right editor group, alongside your bottom terminals.",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "publisher": "local-tools",
   "license": "MIT",
   "engines": {
@@ -59,16 +59,6 @@
     "configuration": {
       "title": "Secondary Terminal",
       "properties": {
-        "secondaryTerminal.autoActivateEnvironment": {
-          "type": "boolean",
-          "default": true,
-          "description": "新增右側原生終端機時，自動啟用偵測到的 Python venv 虛擬環境。"
-        },
-        "secondaryTerminal.environmentPath": {
-          "type": "string",
-          "default": "",
-          "description": "指定 Python venv 資料夾或 Python 執行檔；留空時偵測 Python 擴充套件選定的環境及工作區的 .venv、venv、env、.env。"
-        },
         "secondaryTerminal.shellPath": {
           "type": "string",
           "default": "",
@@ -88,8 +78,8 @@
     }
   },
   "scripts": {
-    "check": "node --check src/extension.js && node --check src/python-environment.js && node --check test/python-environment.test.js && node --check test/integration.js && node --check test/run.js",
-    "test": "node --test test/python-environment.test.js && node test/run.js",
+    "check": "node --check src/extension.js && node --check test/integration.js && node --check test/run.js",
+    "test": "node test/run.js",
     "package": "vsce package --target win32-x64 --allow-missing-repository",
     "vscode:prepublish": "npm run check"
   },

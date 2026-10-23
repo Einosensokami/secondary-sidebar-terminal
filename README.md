@@ -6,7 +6,7 @@
 
 ## 安裝與使用
 
-1. [下載 0.5.0 VSIX](https://github.com/Einosensokami/secondary-sidebar-terminal/releases/download/v0.5.0/secondary-sidebar-terminal-win32-x64-0.5.0.vsix)，執行 **Extensions: Install from VSIX…** 安裝。
+1. [下載 0.5.1 VSIX](https://github.com/Einosensokami/secondary-sidebar-terminal/releases/download/v0.5.1/secondary-sidebar-terminal-win32-x64-0.5.1.vsix)，執行 **Extensions: Install from VSIX…** 安裝。
 2. 執行 **Developer: Reload Window**。升級時，舊版 webview 中的 shell 會結束。
 3. `Ctrl+Shift+P` → **Secondary Terminal: 開啟右側原生終端機**。
 
@@ -34,11 +34,9 @@
 
 不指定 `secondaryTerminal.shellPath` 時，使用 VS Code 預設終端機 profile。原生終端機的重新連線與保存遵循 VS Code 設定。
 
-## Python 虛擬環境
+## Shell 與虛擬環境
 
-新增右側終端機時，預設會自動啟用工作區的 Python venv。優先順序為 `secondaryTerminal.environmentPath`、Python 擴充套件選定的解譯器、`python.defaultInterpreterPath`，接著是 `.venv`、`venv`、`env`、`.env`。
-
-可用 `"secondaryTerminal.autoActivateEnvironment": false` 停用。`secondaryTerminal.shellPath` 與 `secondaryTerminal.shellArgs` 可覆寫右側 shell；留空時使用 VS Code 預設設定。
+虛擬環境選擇與啟用沿用 VS Code／Python 擴充套件的設定。`secondaryTerminal.shellPath` 與 `secondaryTerminal.shellArgs` 可覆寫右側 shell；留空時使用 VS Code 預設設定。
 
 若原生 Terminal 檢視曾被舊版移離底部，可執行 **Secondary Terminal: 還原舊版移走的原生 Terminal 至底部**。
 
@@ -51,6 +49,6 @@ npm test
 npm run package
 ```
 
-整合測試在隔離的真實 VS Code 視窗中確認：右側與底部都是原生終端機、程序彼此獨立、上下捲動、6,000 行歷史、多個右側分頁、關閉互不影響與 Python venv 啟用。可用 `VSCODE_EXECUTABLE` 指定 VS Code 執行檔。目前整合測試在 Windows 驗證。
+整合測試在隔離的真實 VS Code 視窗中確認：右側與底部都是原生終端機、程序彼此獨立、上下捲動、6,000 行歷史、多個右側分頁與關閉互不影響。可用 `VSCODE_EXECUTABLE` 指定 VS Code 執行檔。目前整合測試在 Windows 驗證。
 
 原生位置使用 [TerminalEditorLocationOptions](https://code.visualstudio.com/api/references/vscode-api#TerminalEditorLocationOptions)。終端機操作參見 [VS Code Terminal Basics](https://code.visualstudio.com/docs/terminal/basics)。

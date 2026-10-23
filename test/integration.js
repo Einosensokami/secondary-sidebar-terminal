@@ -15,7 +15,6 @@ async function until(check, description) {
 
 async function run() {
   const output = process.env.SECONDARY_TEST_OUTPUT;
-  const workspace = process.env.SECONDARY_TEST_WORKSPACE;
   const extension = vscode.extensions.getExtension('local-tools.secondary-sidebar-terminal');
   await extension.activate();
   await vscode.workspace.getConfiguration('editor').update('accessibilitySupport', 'on', vscode.ConfigurationTarget.Global);
@@ -57,9 +56,6 @@ async function run() {
     assert.equal(await page.locator('.part.editor .xterm').count(), 1, 'Right terminal uses the native editor renderer');
     assert.equal(page.frames().filter((frame) => frame.url().includes('vscode-webview')).length, 0, 'No custom terminal webview');
 
-    const environment = path.join(workspace, '.venv');
-    assert.equal(await command(right, '$env:VIRTUAL_ENV', 'native-venv'), environment);
-    assert.equal(await command(right, 'python -c "import sys; print(sys.prefix)"', 'native-python'), environment);
     await command(bottom, '$PID', 'bottom-alongside');
 
     right.sendText('[Console]::Write((1..6000 | ForEach-Object { "NATIVE-HISTORY-$_" }) -join "`r`n"); [Console]::WriteLine()');
@@ -85,7 +81,7 @@ async function run() {
     await until(() => rightGroup.tabs.filter((tab) => tab.input instanceof vscode.TabInputTerminal).length === 2,
       'new terminals reuse the same right group');
     assert.equal(vscode.window.tabGroups.all.length, 2, 'New does not create extra editor columns');
-    assert.equal(await command(second, '$env:VIRTUAL_ENV', 'second-native-venv'), environment);
+    assert.equal(Number(await command(second, '$PID', 'second-native-pid')), await second.processId);
 
     bottom.show();
     await vscode.commands.executeCommand('secondaryTerminal.close');
@@ -98,9 +94,8 @@ async function run() {
 
     await vscode.commands.executeCommand('secondaryTerminal.close');
     await until(() => !vscode.window.terminals.includes(right), 'close final right terminal');
-    await vscode.workspace.getConfiguration('secondaryTerminal').update('autoActivateEnvironment', false, vscode.ConfigurationTarget.Workspace);
     const fresh = await vscode.commands.executeCommand('secondaryTerminal.open');
-    assert.equal(await command(fresh, 'if ($env:VIRTUAL_ENV) { $env:VIRTUAL_ENV } else { "NONE" }', 'native-disabled-venv'), 'NONE');
+    assert.equal(Number(await command(fresh, '$PID', 'reopened-native-pid')), await fresh.processId);
     await vscode.commands.executeCommand('secondaryTerminal.close');
     await command(bottom, '$PID', 'bottom-final');
     fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify({
@@ -109,7 +104,7 @@ async function run() {
         'independent shell processes', 'VS Code default shell profile is respected', 'native editor group is locked',
         'no custom terminal webview', 'native wheel scrolls history in both directions', '6000 lines retained in native scrollback',
         'open reuses existing terminal', 'new terminals share the right group', 'closing right terminal preserves bottom shell',
-        'real Python venv activated independently', 'auto activation can be disabled']
+        'reopening after close creates a working native shell']
     }, null, 2));
   } catch (error) {
     fs.writeFileSync(path.join(output, 'failure-dom.txt'), await page.locator('.part.editor').innerText().catch(() => ''));

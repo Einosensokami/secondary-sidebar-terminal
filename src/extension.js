@@ -1,5 +1,4 @@
 const vscode = require('vscode');
-const { findEnvironment, activationCommand } = require('./python-environment');
 
 class NativeTerminals {
   constructor(context) {
@@ -39,26 +38,6 @@ class NativeTerminals {
     return groups.at(-1)?.viewColumn ?? vscode.ViewColumn.Beside;
   }
 
-  async selectedPython(folder) {
-    const extension = vscode.extensions.getExtension('ms-python.python');
-    if (!extension) return undefined;
-    let timer;
-    try {
-      return await Promise.race([
-        (async () => {
-          const api = await extension.activate();
-          await api.ready;
-          return api.environments?.getActiveEnvironmentPath(folder.uri)?.path;
-        })(),
-        new Promise((resolve) => { timer = setTimeout(resolve, 3000); })
-      ]);
-    } catch {
-      return undefined;
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-
   async open(createNew = false) {
     await this.ready;
     await vscode.commands.executeCommand('workbench.action.closeAuxiliaryBar');
@@ -73,13 +52,6 @@ class NativeTerminals {
     const config = vscode.workspace.getConfiguration('secondaryTerminal', folder?.uri);
     const shellPath = config.get('shellPath');
     const shellArgs = config.get('shellArgs');
-    let activation;
-    if (folder && config.get('autoActivateEnvironment', true)) {
-      const selected = await this.selectedPython(folder);
-      const defaultInterpreter = vscode.workspace.getConfiguration('python', folder.uri).get('defaultInterpreterPath');
-      const environment = await findEnvironment(folder.uri.fsPath, selected, config.get('environmentPath'), defaultInterpreter);
-      activation = await activationCommand(environment, shellPath || vscode.env.shell);
-    }
     const terminal = vscode.window.createTerminal({
       location: { viewColumn: this.sideColumn() },
       ...(folder ? { cwd: folder.uri } : {}),
@@ -88,7 +60,6 @@ class NativeTerminals {
     });
     this.track(terminal);
     terminal.show();
-    if (activation) terminal.sendText(activation.trimEnd());
     await this.save();
     return terminal;
   }

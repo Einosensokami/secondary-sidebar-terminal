@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { spawn, execFileSync } = require('node:child_process');
+const { spawn } = require('node:child_process');
 const net = require('node:net');
 
 async function main() {
@@ -19,10 +19,7 @@ async function main() {
   }
   // A fresh isolated profile on each run also makes persisted layout assertions reliable.
   const profile = fs.mkdtempSync(path.join(output, 'profile-'));
-  const workspace = fs.mkdtempSync(path.join(output, "workspace env's-"));
-  execFileSync(process.env.PYTHON_EXECUTABLE || 'python', ['-m', 'venv', '--without-pip', path.join(workspace, '.venv')], {
-    windowsHide: true, timeout: 30000
-  });
+  const workspace = fs.mkdtempSync(path.join(output, "workspace's-"));
   const server = net.createServer();
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const debugPort = server.address().port;
@@ -39,7 +36,6 @@ async function main() {
   const env = { ...process.env };
   env.SECONDARY_TEST_DEBUG_PORT = String(debugPort);
   env.SECONDARY_TEST_OUTPUT = output;
-  env.SECONDARY_TEST_WORKSPACE = workspace;
   delete env.ELECTRON_RUN_AS_NODE;
   let child;
   if (process.platform === 'win32') {
